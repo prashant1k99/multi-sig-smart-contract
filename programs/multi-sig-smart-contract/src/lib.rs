@@ -7,7 +7,7 @@ use anchor_lang::prelude::*;
 
 pub use constants::*;
 pub use instructions::*;
-// pub use state::*;
+pub use state::*;
 
 declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
 
@@ -15,7 +15,11 @@ declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
 pub mod multi_sig_smart_contract {
     use super::*;
 
-    pub fn initialize_multi_sig(ctx: Context<InitializeMultiSig>) -> Result<()> {
-        initialize::handler(ctx)
+    pub fn initialize_project(
+        ctx: Context<InitializeProject>,
+        _company_id: String,
+        _threshold: u8,
+    ) -> Result<()> {
+        initialize_project::handler(ctx)
     }
 }
