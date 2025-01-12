@@ -15,7 +15,7 @@ declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
 pub mod multi_sig_smart_contract {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize_multi_sig(ctx: Context<InitializeMultiSig>) -> Result<()> {
         initialize::handler(ctx)
     }
 }
