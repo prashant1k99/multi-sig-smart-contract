@@ -1,2 +1,2 @@
-pub mod initialize_project;
-pub use initialize_project::*;
+pub mod initialize_multisig;
+pub use initialize_multisig::*;

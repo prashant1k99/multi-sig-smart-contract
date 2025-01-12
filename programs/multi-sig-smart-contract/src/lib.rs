@@ -16,10 +16,10 @@ pub mod multi_sig_smart_contract {
     use super::*;
 
     pub fn initialize_project(
-        ctx: Context<InitializeProject>,
+        ctx: Context<InitializeMultiSig>,
         _company_id: String,
         _threshold: u8,
     ) -> Result<()> {
-        initialize_project::handler(ctx)
+        initialize_multisig::handler(ctx)
     }
 }

@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 
-pub use crate::state::project::MultiSigAccount;
+pub use crate::state::multi_sig::MultiSigAccount;
 pub use crate::ANCHOR_DISCRIMINATOR_SIZE;
 
 #[derive(Accounts)]
 #[instruction(company_id: String)]
-pub struct InitializeProject<'info> {
+pub struct InitializeMultiSig<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
@@ -31,7 +31,7 @@ pub struct InitializeProject<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<InitializeProject>) -> Result<()> {
+pub fn handler(ctx: Context<InitializeMultiSig>) -> Result<()> {
     msg!("Greetings from: {:?}", ctx.program_id);
     Ok(())
 }
