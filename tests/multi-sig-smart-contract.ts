@@ -32,7 +32,7 @@ describe("multi-sig-smart-contract", () => {
 
     provider = new BankrunProvider(context);
 
-    program = getMultiSigProgram(provider);
+    program = new Program<MultiSig>(IDL as MultiSig);
 
     anchor.setProvider(provider);
 
