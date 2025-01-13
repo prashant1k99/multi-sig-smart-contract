@@ -2,6 +2,7 @@ pub mod error;
 pub mod helpers;
 
 use anchor_lang::prelude::*;
+use error::ErrorCode;
 
 const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
 const PROPOSER_POSITION: u8 = 0;
@@ -40,6 +41,28 @@ pub mod multi_sig_smart_contract {
         multisig.bump = ctx.bumps.multisig;
 
         Ok(())
+    }
+
+    pub fn add_user(ctx: Context<AddUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
+        let multisig = &mut ctx.accounts.multisig;
+
+        // Add Validation for roles
+        require!(helpers::is_valid_role(&roles), ErrorCode::UnsupportedRole);
+
+        multisig.users.push(UserInfo {
+            key: user_key,
+            role: helpers::give_numeric_value_for_role(roles),
+        });
+        Ok(())
+    }
+}
+
+impl MultiSigAccount {
+    pub fn is_user(&self, user_key: &Pubkey) -> bool {
+        self.users.iter().any(|user| user.key == *user_key)
+    }
+    pub fn is_owner(&self, user_key: &Pubkey) -> bool {
+        helpers::has_permission(*user_key, OWNER_POSITION, self)
     }
 }
 
@@ -91,4 +114,16 @@ pub struct MultiSigAccount {
 pub struct UserInfo {
     pub key: Pubkey,
     pub role: u8,
+}
+
+#[derive(Accounts)]
+pub struct AddUser<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        constraint = multisig.is_owner(&signer.key()) @ ErrorCode::UserNotAuthorized
+    )]
+    pub multisig: Account<'info, MultiSigAccount>,
 }
