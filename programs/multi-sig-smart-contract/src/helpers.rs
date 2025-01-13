@@ -17,7 +17,7 @@ pub fn has_permission(curr_user: &Pubkey, permission: u8, multisig: &MultiSigAcc
         .map_or(false, |user| (user.roles >> permission) & 1 == 1)
 }
 
-pub fn is_valid_role(input_roles: &Vec<u8>) -> bool {
+pub fn are_valid_roles(input_roles: &Vec<u8>) -> bool {
     input_roles.iter().all(|&role| match role {
         OWNER_POSITION | PROPOSER_POSITION | APPROVER_POSITION | EXECUTOR_POSITION => true,
         _ => false,

@@ -53,7 +53,7 @@ pub mod multi_sig_smart_contract {
         // Check for user already exists
         require!(!multisig.is_user(&user_key), ErrorCode::UserAlreadyExists);
         // Add Validation for roles
-        require!(helpers::is_valid_role(&roles), ErrorCode::UnsupportedRole);
+        require!(helpers::are_valid_roles(&roles), ErrorCode::UnsupportedRole);
 
         multisig.users.push(UserInfo {
             key: user_key,
@@ -82,7 +82,7 @@ pub mod multi_sig_smart_contract {
         // Check for user exists
         require!(multisig.is_user(&user_key), ErrorCode::UserDoesNotExists);
         // Add Validation for roles
-        require!(helpers::is_valid_role(&roles), ErrorCode::UnsupportedRole);
+        require!(helpers::are_valid_roles(&roles), ErrorCode::UnsupportedRole);
 
         // Update permission
         for user in multisig.users.iter_mut() {
@@ -251,6 +251,7 @@ pub struct InitProposal<'info> {
         seeds = [b"treasury", multisig.company_id.as_bytes()],
         bump = multisig.treasury_bump,
     )]
+    /// CHECK: This is a PDA that will hold SOL and sign transactions
     pub treasury: UncheckedAccount<'info>,
 
     #[account(
