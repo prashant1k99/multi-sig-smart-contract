@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { assert } from "chai";
 import { MultiSigSmartContract as MultiSig } from "../target/types/multi_sig_smart_contract";
 
 describe("multi-sig-smart-contract", () => {
@@ -16,8 +17,13 @@ describe("multi-sig-smart-contract", () => {
     Buffer.from(companyID),
   ], program.programId);
 
+  const [treasuryAccountKey] = PublicKey.findProgramAddressSync([
+    Buffer.from("treasury"),
+    Buffer.from(companyID),
+  ], program.programId)
+
   it("Should create MultiSig", async () => {
-    const tx = await program.methods
+    await program.methods
       .initializeProject(companyID)
       .accounts({
         signer: payer.publicKey,
@@ -26,9 +32,27 @@ describe("multi-sig-smart-contract", () => {
         commitment: "confirmed",
       });
 
-    console.log("Transaction Signature: ", tx);
-
     const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
-    console.log(multiSigAccount)
+    assert.equal(multiSigAccount.companyId.toString(), companyID)
+
+    const treasuryBalance = await provider.connection.getBalance(treasuryAccountKey);
+    assert.equal(Math.floor(treasuryBalance / LAMPORTS_PER_SOL), 0)
   });
+
+  it("should add money to treasury account", async () => {
+    // We need to airdrop some amount in the treasyry PDA
+    const initialTreasuryAccountBalance = await provider.connection.getBalance(treasuryAccountKey);
+
+    const toAdd = 100 * LAMPORTS_PER_SOL;
+    const tx = await provider.connection.requestAirdrop(
+      treasuryAccountKey,
+      toAdd // 100 SOL
+    );
+
+    // Wait for confirmation
+    await provider.connection.confirmTransaction(tx, "confirmed");
+
+    const balance = await provider.connection.getBalance(treasuryAccountKey);
+    assert.equal(initialTreasuryAccountBalance + toAdd, balance)
+  })
 });

@@ -16,11 +16,9 @@ pub mod multi_sig_smart_contract {
     use super::*;
 
     pub fn initialize_project(ctx: Context<InitializeMultiSig>, company_id: String) -> Result<()> {
-        msg!("starting");
         let multisig = &mut ctx.accounts.multisig;
         let initializer = &ctx.accounts.signer;
 
-        msg!("Point 1");
         // Initialize multisig settings
         multisig.threshold = 1;
         multisig.company_id = company_id;
@@ -36,13 +34,11 @@ pub mod multi_sig_smart_contract {
             ]),
         });
 
-        msg!("Point 2");
         // Set PDA authority for treasury
         multisig.treasury = ctx.accounts.treasury.key();
         multisig.treasury_bump = ctx.bumps.treasury;
         multisig.bump = ctx.bumps.multisig;
 
-        msg!("Finished");
         Ok(())
     }
 }
