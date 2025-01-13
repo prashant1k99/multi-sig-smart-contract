@@ -116,6 +116,34 @@ pub mod multi_sig_smart_contract {
 
         Ok(())
     }
+
+    pub fn propose(
+        ctx: Context<InitProposal>,
+        pid: Pubkey,
+        accounts: Vec<TransactionAccount>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let multisig = &ctx.accounts.multisig;
+
+        // Check if the signer has correct permission to propose transaction
+        require!(
+            helpers::has_permission(&ctx.accounts.signer.key, PROPOSER_POSITION, multisig),
+            ErrorCode::UserNotAuthorized
+        );
+
+        *ctx.accounts.proposition = Proposition {
+            executed_by: None,
+            proposer: *ctx.accounts.signer.key,
+            program_id: pid,
+            accounts,
+            data,
+            bump: ctx.bumps.proposition,
+            signers: vec![],
+            did_execute: false,
+        };
+
+        Ok(())
+    }
 }
 
 impl MultiSigAccount {
@@ -123,7 +151,7 @@ impl MultiSigAccount {
         self.users.iter().any(|user| user.key == *user_key)
     }
     pub fn is_owner(&self, user_key: &Pubkey) -> bool {
-        helpers::has_permission(*user_key, OWNER_POSITION, self)
+        helpers::has_permission(user_key, OWNER_POSITION, self)
     }
 }
 
@@ -187,4 +215,60 @@ pub struct CrudMultiSigAccount<'info> {
         constraint = multisig.is_owner(&signer.key()) @ ErrorCode::UserNotAuthorized
     )]
     pub multisig: Account<'info, MultiSigAccount>,
+}
+
+#[derive(Accounts)]
+#[instruction(proposal_id: String)]
+pub struct InitProposal<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        constraint = multisig.is_user(&signer.key()) @ ErrorCode::UserNotAuthorized
+    )]
+    pub multisig: Account<'info, MultiSigAccount>,
+
+    #[account(
+        mut,
+        constraint = treasury.key() == multisig.treasury @ ErrorCode::InvalidTreasury,
+        seeds = [b"treasury", multisig.company_id.as_bytes()],
+        bump = multisig.treasury_bump,
+    )]
+    pub treasury: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        payer = treasury,
+        space = ANCHOR_DISCRIMINATOR_SIZE + Proposition::INIT_SPACE,
+        seeds = [b"transaction", signer.key().as_ref()],
+        bump
+    )]
+    pub proposition: Account<'info, Proposition>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Proposition {
+    #[max_len(3)]
+    pub accounts: Vec<TransactionAccount>, // For executing transaction
+    #[max_len(1024)]
+    pub data: Vec<u8>,
+    #[max_len(20)]
+    pub signers: Vec<bool>,
+
+    pub proposer: Pubkey,
+    pub executed_by: Option<Pubkey>,
+    pub program_id: Pubkey,
+    pub did_execute: bool,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct TransactionAccount {
+    pub pubkey: Pubkey,
+    pub is_signer: bool,
+    pub is_writable: bool,
 }

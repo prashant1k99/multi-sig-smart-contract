@@ -14,4 +14,6 @@ pub enum ErrorCode {
     UserDoesNotExists,
     #[msg("Threshold value is more then approver count")]
     ThresholdOverflow,
+    #[msg("Invalid treasury key")]
+    InvalidTreasury,
 }
