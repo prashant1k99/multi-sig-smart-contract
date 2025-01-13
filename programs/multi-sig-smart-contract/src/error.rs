@@ -12,4 +12,6 @@ pub enum ErrorCode {
     UserAlreadyExists,
     #[msg("User does not exists")]
     UserDoesNotExists,
+    #[msg("Threshold value is more then approver count")]
+    ThresholdOverflow,
 }

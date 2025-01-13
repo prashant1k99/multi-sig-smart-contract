@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
-import { provider, program, payer, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
+import anchor, { provider, program, payer, proposer, approver, executor, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
 
 enum Roles {
   PROPOSER,
@@ -73,6 +73,75 @@ describe("mult sig init and add user", () => {
 
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should have proposer role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
+    assert.isTrue(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should have executor role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+  })
+
+  it("Should add proposer users", async () => {
+    await program.methods.addUser(
+      proposer.publicKey,
+      Buffer.from([Roles.PROPOSER])
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed",
+    });
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+
+    const addedUser = multiSigAccount.users.find(
+      user => user.key.toString() === proposer.publicKey.toString()
+    )
+    assert.exists(addedUser, "Added user should exist in multiSigAccount")
+
+    assert.isTrue(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should have proposer role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should not have approver role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+  })
+
+  it("Should add approver users", async () => {
+    await program.methods.addUser(
+      approver.publicKey,
+      Buffer.from([Roles.APPROVER])
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed",
+    });
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+
+    const addedUser = multiSigAccount.users.find(
+      user => user.key.toString() === approver.publicKey.toString()
+    )
+    assert.exists(addedUser, "Added user should exist in multiSigAccount")
+
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should not have proposer role");
+    assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+  })
+
+  it("Should add executor users", async () => {
+    await program.methods.addUser(
+      executor.publicKey,
+      Buffer.from([Roles.EXECUTOR])
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed",
+    });
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+
+    const addedUser = multiSigAccount.users.find(
+      user => user.key.toString() === executor.publicKey.toString()
+    )
+    assert.exists(addedUser, "Added user should exist in multiSigAccount")
+
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should not have proposer role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should not have approver role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
   })
@@ -198,5 +267,24 @@ describe("mult sig init and add user", () => {
     // Check for other user
     const otherUserexists = multiSigAccount.users.some(user => user.key.toString() == otherUser.publicKey.toString())
     assert.isTrue(otherUserexists, "Other user should not be removed from multiSigAccount")
+  })
+
+  it("Should not update threshold more then approver count", async () => {
+    try {
+      await program.methods.updateThreshold(
+        10
+      ).accounts({
+        multisig: multiSigAccountKey
+      }).rpc({
+        commitment: "confirmed"
+      })
+      assert.fail("Should not set threshold more then approver count")
+    } catch (error) {
+      assert.include(
+        error.message,
+        "Threshold value is more then approver count",
+        "Expected threshold not exceed error"
+      );
+    }
   })
 });

@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    MultiSigAccount, APPROVER_POSITION, EXECUTOR_POSITION, OWNER_POSITION, PROPOSER_POSITION,
+    MultiSigAccount, UserInfo, APPROVER_POSITION, EXECUTOR_POSITION, OWNER_POSITION,
+    PROPOSER_POSITION,
 };
 
 pub fn give_numeric_value_for_role(roles: Vec<u8>) -> u8 {
@@ -21,4 +22,8 @@ pub fn is_valid_role(input_roles: &Vec<u8>) -> bool {
         OWNER_POSITION | PROPOSER_POSITION | APPROVER_POSITION | EXECUTOR_POSITION => true,
         _ => false,
     })
+}
+
+pub fn check_role(user: &UserInfo, role: u8) -> bool {
+    (user.roles >> role) & 1 == 1
 }

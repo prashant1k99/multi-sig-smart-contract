@@ -13,6 +13,7 @@ export const otherUser = Keypair.generate();
 export const proposer = Keypair.generate();
 export const approver = Keypair.generate();
 export const executor = Keypair.generate();
+export default anchor;
 
 export const setup = () => {
   provider = anchor.AnchorProvider.env();

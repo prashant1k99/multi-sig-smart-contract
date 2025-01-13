@@ -43,7 +43,11 @@ pub mod multi_sig_smart_contract {
         Ok(())
     }
 
-    pub fn add_user(ctx: Context<CrudUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
+    pub fn add_user(
+        ctx: Context<CrudMultiSigAccount>,
+        user_key: Pubkey,
+        roles: Vec<u8>,
+    ) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
         // Check for user already exists
@@ -58,7 +62,7 @@ pub mod multi_sig_smart_contract {
         Ok(())
     }
 
-    pub fn remove_user(ctx: Context<CrudUser>, user_key: Pubkey) -> Result<()> {
+    pub fn remove_user(ctx: Context<CrudMultiSigAccount>, user_key: Pubkey) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
         // Check for user exists
@@ -69,7 +73,7 @@ pub mod multi_sig_smart_contract {
     }
 
     pub fn update_permission(
-        ctx: Context<CrudUser>,
+        ctx: Context<CrudMultiSigAccount>,
         user_key: Pubkey,
         roles: Vec<u8>,
     ) -> Result<()> {
@@ -87,6 +91,28 @@ pub mod multi_sig_smart_contract {
                 break;
             }
         }
+
+        Ok(())
+    }
+
+    pub fn update_threshold(ctx: Context<CrudMultiSigAccount>, threshold: u8) -> Result<()> {
+        // Check for total number of approvers, threshold should be less then equal to number of
+        // approvers
+        let multisig = &mut ctx.accounts.multisig;
+
+        let approver_count = multisig
+            .users
+            .iter()
+            .filter(|&user| helpers::check_role(user, APPROVER_POSITION))
+            .count();
+
+        msg!("Accprover count: {}", approver_count);
+        require!(
+            threshold <= (approver_count as u8),
+            ErrorCode::ThresholdOverflow
+        );
+
+        multisig.threshold = threshold;
 
         Ok(())
     }
@@ -152,7 +178,7 @@ pub struct UserInfo {
 }
 
 #[derive(Accounts)]
-pub struct CrudUser<'info> {
+pub struct CrudMultiSigAccount<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
