@@ -7,7 +7,7 @@ use error::ErrorCode;
 const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
 const PROPOSER_POSITION: u8 = 0;
 const APPROVER_POSITION: u8 = 1;
-const EXECUTIONER_POSITION: u8 = 2;
+const EXECUTOR_POSITION: u8 = 2;
 const OWNER_POSITION: u8 = 3;
 
 declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
@@ -27,11 +27,11 @@ pub mod multi_sig_smart_contract {
         // Add initializer as the first owner with all permissions
         multisig.users.push(UserInfo {
             key: initializer.key(),
-            role: helpers::give_numeric_value_for_role(vec![
+            roles: helpers::give_numeric_value_for_role(vec![
                 OWNER_POSITION,
                 PROPOSER_POSITION,
                 APPROVER_POSITION,
-                EXECUTIONER_POSITION,
+                EXECUTOR_POSITION,
             ]),
         });
 
@@ -46,12 +46,14 @@ pub mod multi_sig_smart_contract {
     pub fn add_user(ctx: Context<AddUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
+        // Check for user already exists
+        require!(!multisig.is_user(&user_key), ErrorCode::UserAlreadyExists);
         // Add Validation for roles
         require!(helpers::is_valid_role(&roles), ErrorCode::UnsupportedRole);
 
         multisig.users.push(UserInfo {
             key: user_key,
-            role: helpers::give_numeric_value_for_role(roles),
+            roles: helpers::give_numeric_value_for_role(roles),
         });
         Ok(())
     }
@@ -113,7 +115,7 @@ pub struct MultiSigAccount {
 #[derive(InitSpace)]
 pub struct UserInfo {
     pub key: Pubkey,
-    pub role: u8,
+    pub roles: u8,
 }
 
 #[derive(Accounts)]

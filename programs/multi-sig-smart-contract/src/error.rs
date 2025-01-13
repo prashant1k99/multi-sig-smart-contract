@@ -8,4 +8,6 @@ pub enum ErrorCode {
     UnsupportedRole,
     #[msg("User not authorized")]
     UserNotAuthorized,
+    #[msg("User already exists")]
+    UserAlreadyExists,
 }
