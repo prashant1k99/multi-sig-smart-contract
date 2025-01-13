@@ -1,8 +1,6 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
-import { MultiSigSmartContract as MultiSig } from "../target/types/multi_sig_smart_contract";
+import { provider, program, payer, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
 
 enum Roles {
   PROPOSER,
@@ -15,21 +13,10 @@ const checkRole = (role: number, forRole: Roles): boolean => {
   return (role & (1 << forRole)) !== 0;
 }
 
-
 describe("mult sig init and add user", () => {
-  const companyID = "67840a280000000000000000"
-  const provider = anchor.AnchorProvider.env()
-  anchor.setProvider(provider)
-  const payer = provider.wallet as anchor.Wallet
-  const program = anchor.workspace.MultiSigSmartContract as Program<MultiSig>;
-  const [multiSigAccountKey] = PublicKey.findProgramAddressSync([
-    Buffer.from(companyID),
-  ], program.programId);
-  const [treasuryAccountKey] = PublicKey.findProgramAddressSync([
-    Buffer.from("treasury"),
-    Buffer.from(companyID),
-  ], program.programId)
-  const otherUser = Keypair.generate()
+  before(() => {
+    setup()
+  })
 
   it("Should create MultiSig", async () => {
     await program.methods
@@ -79,11 +66,11 @@ describe("mult sig init and add user", () => {
 
     const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
 
-    const userExists = multiSigAccount.users.some(user => user.key.toString() == otherUser.publicKey.toString())
-    assert.isTrue(userExists, "Added user should exist in multiSigAccount")
     const addedUser = multiSigAccount.users.find(
       user => user.key.toString() === otherUser.publicKey.toString()
-    );
+    )
+    assert.exists(addedUser, "Added user should exist in multiSigAccount")
+
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should have proposer role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should have executor role");
@@ -175,11 +162,10 @@ describe("mult sig init and add user", () => {
 
     const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
 
-    const userExists = multiSigAccount.users.some(user => user.key.toString() == otherUser.publicKey.toString())
-    assert.isTrue(userExists, "Added user should exist in multiSigAccount")
     const addedUser = multiSigAccount.users.find(
       user => user.key.toString() === otherUser.publicKey.toString()
     );
+    assert.exists(addedUser, "User should exist in multiSigAccount")
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should have proposer role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
@@ -208,6 +194,9 @@ describe("mult sig init and add user", () => {
     const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
 
     const userExists = multiSigAccount.users.some(user => user.key.toString() == randomUser.publicKey.toString())
-    assert.isFalse(userExists, "Added user should not exist in multiSigAccount")
+    assert.isFalse(userExists, "Random user should not exist in multiSigAccount")
+    // Check for other user
+    const otherUserexists = multiSigAccount.users.some(user => user.key.toString() == otherUser.publicKey.toString())
+    assert.isTrue(otherUserexists, "Other user should not be removed from multiSigAccount")
   })
 });
