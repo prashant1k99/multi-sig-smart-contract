@@ -163,4 +163,27 @@ describe("mult sig init and add user", () => {
       );
     }
   })
+
+  it("should update permissions", async () => {
+    await program.methods.updatePermission(
+      otherUser.publicKey,
+      Buffer.from([Roles.PROPOSER, Roles.APPROVER]) // Proposer Role
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+
+    const userExists = multiSigAccount.users.some(user => user.key.toString() == otherUser.publicKey.toString())
+    assert.isTrue(userExists, "Added user should exist in multiSigAccount")
+    const addedUser = multiSigAccount.users.find(
+      user => user.key.toString() === otherUser.publicKey.toString()
+    );
+    assert.isTrue(checkRole(Number(addedUser.roles), Roles.PROPOSER), "User should have proposer role");
+    assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
+    assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+  })
 });

@@ -44,6 +44,7 @@ pub mod multi_sig_smart_contract {
     }
 
     pub fn add_user(ctx: Context<AddUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
+    pub fn add_user(ctx: Context<CrudUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
         // Check for user already exists
@@ -55,6 +56,28 @@ pub mod multi_sig_smart_contract {
             key: user_key,
             roles: helpers::give_numeric_value_for_role(roles),
         });
+        Ok(())
+    }
+    pub fn update_permission(
+        ctx: Context<CrudUser>,
+        user_key: Pubkey,
+        roles: Vec<u8>,
+    ) -> Result<()> {
+        let multisig = &mut ctx.accounts.multisig;
+
+        // Check for user exists
+        require!(multisig.is_user(&user_key), ErrorCode::UserDoesNotExists);
+        // Add Validation for roles
+        require!(helpers::is_valid_role(&roles), ErrorCode::UnsupportedRole);
+
+        // Update permission
+        for user in multisig.users.iter_mut() {
+            if user.key == user_key {
+                user.roles = helpers::give_numeric_value_for_role(roles);
+                break;
+            }
+        }
+
         Ok(())
     }
 }
@@ -120,6 +143,7 @@ pub struct UserInfo {
 
 #[derive(Accounts)]
 pub struct AddUser<'info> {
+pub struct CrudUser<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 

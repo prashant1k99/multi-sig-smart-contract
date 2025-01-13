@@ -10,4 +10,6 @@ pub enum ErrorCode {
     UserNotAuthorized,
     #[msg("User already exists")]
     UserAlreadyExists,
+    #[msg("User does not exists")]
+    UserDoesNotExists,
 }
