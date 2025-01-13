@@ -16,4 +16,8 @@ pub enum ErrorCode {
     ThresholdOverflow,
     #[msg("Invalid treasury key")]
     InvalidTreasury,
+    #[msg("Invalid calculation")]
+    InvalidCalculation,
+    #[msg("Inufficient funds in treasury for action")]
+    InsufficientTreasuryFunds,
 }

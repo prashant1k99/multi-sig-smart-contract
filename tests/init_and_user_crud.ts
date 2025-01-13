@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
-import anchor, { provider, program, payer, proposer, approver, executor, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
+import { provider, program, payer, proposer, approver, executor, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
 
 enum Roles {
   PROPOSER,

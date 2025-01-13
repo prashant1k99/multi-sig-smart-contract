@@ -142,6 +142,23 @@ pub mod multi_sig_smart_contract {
             did_execute: false,
         };
 
+        let treasury = &mut ctx.accounts.treasury;
+
+        let rent = Rent::get()?;
+        let required_lamports =
+            rent.minimum_balance(ANCHOR_DISCRIMINATOR_SIZE + Proposition::INIT_SPACE);
+
+        require!(
+            treasury.lamports() >= required_lamports,
+            ErrorCode::InsufficientTreasuryFunds
+        );
+
+        // Deduct amount
+        **treasury.try_borrow_mut_lamports()? = treasury
+            .lamports()
+            .checked_sub(required_lamports)
+            .ok_or(ErrorCode::InvalidCalculation)?;
+
         Ok(())
     }
 }
