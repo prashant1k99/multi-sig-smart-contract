@@ -1,47 +1,34 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { BankrunProvider } from "anchor-bankrun";
-import {
-  BanksClient,
-  ProgramTestContext,
-  startAnchor,
-} from "solana-bankrun";
-import { MultiSig, MultiSigIDL as IDL, getMultiSigProgram } from "../app";
+import { PublicKey } from "@solana/web3.js";
+import { MultiSigSmartContract as MultiSig } from "../target/types/multi_sig_smart_contract";
 
 describe("multi-sig-smart-contract", () => {
   // Configure the client to use the local cluster.
+  const companyID = "67840a280000000000000000"
 
-  let context: ProgramTestContext;
-  let provider: BankrunProvider;
-  let program: Program<MultiSig>;
-  let banksClient: BanksClient;
-  let owner: Keypair;
+  const provider = anchor.AnchorProvider.env()
+  anchor.setProvider(provider)
+  const payer = provider.wallet as anchor.Wallet
 
-  before(async () => {
-    context = await startAnchor(
-      "",
-      [
-        {
-          name: IDL.metadata.name,
-          programId: new PublicKey(IDL.address),
-        },
-      ],
-      [],
-    );
+  const program = anchor.workspace.MultiSigSmartContract as Program<MultiSig>;
+  const [multiSigAccountKey] = PublicKey.findProgramAddressSync([
+    Buffer.from(companyID),
+  ], program.programId);
 
-    provider = new BankrunProvider(context);
+  it("Should create MultiSig", async () => {
+    const tx = await program.methods
+      .initializeProject(companyID)
+      .accounts({
+        signer: payer.publicKey,
+      })
+      .rpc({
+        commitment: "confirmed",
+      });
 
-    program = new Program<MultiSig>(IDL as MultiSig);
+    console.log("Transaction Signature: ", tx);
 
-    anchor.setProvider(provider);
-
-    banksClient = context.banksClient;
-
-    owner = provider.wallet.payer;
-  })
-
-  it("Should create MultiSig", () => {
-    // Write test case for creating a multi sig account
-  })
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+    console.log(multiSigAccount)
+  });
 });
