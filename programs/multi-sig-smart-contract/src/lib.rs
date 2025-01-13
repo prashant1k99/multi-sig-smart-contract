@@ -43,7 +43,6 @@ pub mod multi_sig_smart_contract {
         Ok(())
     }
 
-    pub fn add_user(ctx: Context<AddUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
     pub fn add_user(ctx: Context<CrudUser>, user_key: Pubkey, roles: Vec<u8>) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
@@ -58,6 +57,17 @@ pub mod multi_sig_smart_contract {
         });
         Ok(())
     }
+
+    pub fn remove_user(ctx: Context<CrudUser>, user_key: Pubkey) -> Result<()> {
+        let multisig = &mut ctx.accounts.multisig;
+
+        // Check for user exists
+        require!(multisig.is_user(&user_key), ErrorCode::UserDoesNotExists);
+
+        multisig.users.retain(|user| user.key != user_key);
+        Ok(())
+    }
+
     pub fn update_permission(
         ctx: Context<CrudUser>,
         user_key: Pubkey,
@@ -142,7 +152,6 @@ pub struct UserInfo {
 }
 
 #[derive(Accounts)]
-pub struct AddUser<'info> {
 pub struct CrudUser<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,

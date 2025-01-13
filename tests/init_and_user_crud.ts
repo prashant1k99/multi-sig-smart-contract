@@ -166,8 +166,7 @@ describe("mult sig init and add user", () => {
 
   it("should update permissions", async () => {
     await program.methods.updatePermission(
-      otherUser.publicKey,
-      Buffer.from([Roles.PROPOSER, Roles.APPROVER]) // Proposer Role
+      otherUser.publicKey, Buffer.from([Roles.PROPOSER, Roles.APPROVER]) // Proposer Role
     ).accounts({
       multisig: multiSigAccountKey
     }).rpc({
@@ -185,5 +184,30 @@ describe("mult sig init and add user", () => {
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+  })
+
+  it("should remove user", async () => {
+    const randomUser = Keypair.generate();
+    await program.methods.addUser(
+      randomUser.publicKey,
+      Buffer.from([Roles.APPROVER, Roles.EXECUTOR])
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    await program.methods.removeUser(
+      randomUser.publicKey
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+
+    const userExists = multiSigAccount.users.some(user => user.key.toString() == randomUser.publicKey.toString())
+    assert.isFalse(userExists, "Added user should not exist in multiSigAccount")
   })
 });
