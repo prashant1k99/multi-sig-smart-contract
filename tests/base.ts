@@ -13,18 +13,23 @@ export const otherUser = Keypair.generate();
 export const proposer = Keypair.generate();
 export const approver = Keypair.generate();
 export const executor = Keypair.generate();
-export default anchor;
+
 
 export const setup = () => {
   provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
+
   payer = provider.wallet as anchor.Wallet;
   program = anchor.workspace.MultiSigSmartContract as Program<MultiSig>;
+
   [multiSigAccountKey] = PublicKey.findProgramAddressSync([
     Buffer.from(companyID),
   ], program.programId);
+
   [treasuryAccountKey] = PublicKey.findProgramAddressSync([
     Buffer.from("treasury"),
     Buffer.from(companyID),
   ], program.programId)
 }
+
+

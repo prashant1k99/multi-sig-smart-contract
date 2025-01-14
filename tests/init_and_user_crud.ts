@@ -41,7 +41,7 @@ describe("mult sig init and add user", () => {
     // We need to airdrop some amount in the treasyry PDA
     const initialTreasuryAccountBalance = await provider.connection.getBalance(treasuryAccountKey);
 
-    const toAdd = 100 * LAMPORTS_PER_SOL;
+    const toAdd = 10000 * LAMPORTS_PER_SOL;
     const tx = await provider.connection.requestAirdrop(
       treasuryAccountKey,
       toAdd // 100 SOL
@@ -98,6 +98,14 @@ describe("mult sig init and add user", () => {
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should not have approver role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+
+    const tx = await provider.connection.requestAirdrop(
+      proposer.publicKey,
+      10 * LAMPORTS_PER_SOL // 10 SOL
+    );
+
+    // Wait for confirmation
+    await provider.connection.confirmTransaction(tx, "confirmed");
   })
 
   it("Should add approver users", async () => {
@@ -121,6 +129,13 @@ describe("mult sig init and add user", () => {
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+    const tx = await provider.connection.requestAirdrop(
+      approver.publicKey,
+      10 * LAMPORTS_PER_SOL // 10 SOL
+    );
+
+    // Wait for confirmation
+    await provider.connection.confirmTransaction(tx, "confirmed");
   })
 
   it("Should add executor users", async () => {
@@ -144,6 +159,13 @@ describe("mult sig init and add user", () => {
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should not have approver role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
+    const tx = await provider.connection.requestAirdrop(
+      executor.publicKey,
+      10 * LAMPORTS_PER_SOL // 10 SOL
+    );
+
+    // Wait for confirmation
+    await provider.connection.confirmTransaction(tx, "confirmed");
   })
 
   it("Should not add same user again", async () => {

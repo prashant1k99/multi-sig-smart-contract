@@ -39,6 +39,7 @@ pub mod multi_sig_smart_contract {
         multisig.treasury = ctx.accounts.treasury.key();
         multisig.treasury_bump = ctx.bumps.treasury;
         multisig.bump = ctx.bumps.multisig;
+        multisig.transaction_count = 0;
 
         Ok(())
     }
@@ -119,21 +120,22 @@ pub mod multi_sig_smart_contract {
 
     pub fn propose(
         ctx: Context<InitProposal>,
+        _company_id: String,
         pid: Pubkey,
         accounts: Vec<TransactionAccount>,
         data: Vec<u8>,
     ) -> Result<()> {
-        let multisig = &ctx.accounts.multisig;
+        let multisig = &mut ctx.accounts.multisig;
 
         // Check if the signer has correct permission to propose transaction
         require!(
-            helpers::has_permission(&ctx.accounts.signer.key, PROPOSER_POSITION, multisig),
+            helpers::has_permission(&ctx.accounts.proposer.key, PROPOSER_POSITION, multisig),
             ErrorCode::UserNotAuthorized
         );
 
         *ctx.accounts.proposition = Proposition {
             executed_by: None,
-            proposer: *ctx.accounts.signer.key,
+            proposer: *ctx.accounts.proposer.key,
             program_id: pid,
             accounts,
             data,
@@ -142,22 +144,7 @@ pub mod multi_sig_smart_contract {
             did_execute: false,
         };
 
-        let treasury = &mut ctx.accounts.treasury;
-
-        let rent = Rent::get()?;
-        let required_lamports =
-            rent.minimum_balance(ANCHOR_DISCRIMINATOR_SIZE + Proposition::INIT_SPACE);
-
-        require!(
-            treasury.lamports() >= required_lamports,
-            ErrorCode::InsufficientTreasuryFunds
-        );
-
-        // Deduct amount
-        **treasury.try_borrow_mut_lamports()? = treasury
-            .lamports()
-            .checked_sub(required_lamports)
-            .ok_or(ErrorCode::InvalidCalculation)?;
+        multisig.transaction_count += 1;
 
         Ok(())
     }
@@ -212,6 +199,7 @@ pub struct MultiSigAccount {
     pub threshold: u8,
     pub treasury: Pubkey,
     pub treasury_bump: u8,
+    pub transaction_count: u32,
     pub bump: u8,
 }
 
@@ -235,30 +223,23 @@ pub struct CrudMultiSigAccount<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(proposal_id: String)]
+#[instruction(company_id: String)]
 pub struct InitProposal<'info> {
     #[account(mut)]
-    pub signer: Signer<'info>,
+    pub proposer: Signer<'info>,
 
-    #[account(
-        constraint = multisig.is_user(&signer.key()) @ ErrorCode::UserNotAuthorized
-    )]
+    #[account(mut)]
     pub multisig: Account<'info, MultiSigAccount>,
 
     #[account(
-        mut,
-        constraint = treasury.key() == multisig.treasury @ ErrorCode::InvalidTreasury,
-        seeds = [b"treasury", multisig.company_id.as_bytes()],
-        bump = multisig.treasury_bump,
-    )]
-    /// CHECK: This is a PDA that will hold SOL and sign transactions
-    pub treasury: UncheckedAccount<'info>,
-
-    #[account(
         init,
-        payer = treasury,
+        payer = proposer,
         space = ANCHOR_DISCRIMINATOR_SIZE + Proposition::INIT_SPACE,
-        seeds = [b"transaction", signer.key().as_ref()],
+        seeds = [
+            b"proposition",
+            multisig.key().as_ref(),
+            &[multisig.transaction_count as u8]
+        ],
         bump
     )]
     pub proposition: Account<'info, Proposition>,
@@ -271,7 +252,7 @@ pub struct InitProposal<'info> {
 pub struct Proposition {
     #[max_len(3)]
     pub accounts: Vec<TransactionAccount>, // For executing transaction
-    #[max_len(1024)]
+    #[max_len(1000)]
     pub data: Vec<u8>,
     #[max_len(20)]
     pub signers: Vec<bool>,
