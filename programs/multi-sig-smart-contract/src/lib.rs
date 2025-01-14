@@ -120,7 +120,6 @@ pub mod multi_sig_smart_contract {
 
     pub fn propose(
         ctx: Context<InitProposal>,
-        _company_id: String,
         pid: Pubkey,
         accounts: Vec<TransactionAccount>,
         data: Vec<u8>,
@@ -223,7 +222,6 @@ pub struct CrudMultiSigAccount<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(company_id: String)]
 pub struct InitProposal<'info> {
     #[account(mut)]
     pub proposer: Signer<'info>,

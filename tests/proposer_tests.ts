@@ -32,7 +32,6 @@ describe("proposal testing", () => {
 
     // Propose with
     await program.methods.propose(
-      companyID,
       SystemProgram.programId,
       modifiedKeys,
       simpleTransaction.data,
