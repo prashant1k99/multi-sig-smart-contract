@@ -14,6 +14,8 @@ declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
 
 #[program]
 pub mod multi_sig_smart_contract {
+    use anchor_lang::solana_program::{self, instruction::Instruction};
+
     use super::*;
 
     pub fn initialize_project(ctx: Context<InitializeMultiSig>, company_id: String) -> Result<()> {
@@ -151,7 +153,8 @@ pub mod multi_sig_smart_contract {
     pub fn approve(ctx: Context<ApproveProposal>, is_approving: bool) -> Result<()> {
         let proposal = &mut ctx.accounts.proposition;
 
-        let existing_vote_index = proposal.signers
+        let existing_vote_index = proposal
+            .signers
             .iter()
             .position(|user| user.key == *ctx.accounts.approver.key);
 
@@ -159,7 +162,7 @@ pub mod multi_sig_smart_contract {
             Some(index) => {
                 // Check if the vote is same
                 if proposal.signers[index].favour == is_approving {
-                     return Err(ErrorCode::UserAlreadyVoted.into())
+                    return Err(ErrorCode::UserAlreadyVoted.into());
                 }
                 // Update existing vote
                 proposal.signers[index].favour = is_approving;
@@ -167,7 +170,7 @@ pub mod multi_sig_smart_contract {
             None => {
                 proposal.signers.push(ApproverVotes {
                     key: *ctx.accounts.approver.key,
-                    favour: is_approving
+                    favour: is_approving,
                 });
             }
         }
@@ -175,7 +178,52 @@ pub mod multi_sig_smart_contract {
         Ok(())
     }
 
-    pub fn execute(_ctx: Context<ExecuteProposal>) -> Result<()> {
+    pub fn execute(ctx: Context<ExecuteProposal>) -> Result<()> {
+        let multisig = &ctx.accounts.multisig;
+        let proposal = &mut ctx.accounts.proposition;
+
+        require!(!proposal.did_execute, ErrorCode::TransactionAlreadyExecuted);
+
+        let favoured_vote_count = proposal
+            .signers
+            .iter()
+            .filter(|vote| vote.favour == true)
+            .count() as u8;
+        require!(
+            favoured_vote_count >= multisig.threshold,
+            ErrorCode::InsufficientVotes
+        );
+
+        // Try executing the proposal
+
+        let seeds = &[
+            b"treasury",
+            multisig.company_id.as_bytes(),
+            &[multisig.treasury_bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let instruction = Instruction {
+            program_id: proposal.program_id,
+            accounts: proposal
+                .accounts
+                .iter()
+                .map(|acc| AccountMeta {
+                    pubkey: acc.pubkey,
+                    is_signer: acc.is_signer,
+                    is_writable: acc.is_writable,
+                })
+                .collect(),
+            data: proposal.data.clone(),
+        };
+
+        // Execute the instruction with treasury as signer
+        solana_program::program::invoke_signed(&instruction, ctx.remaining_accounts, signer)?;
+
+        // Mark proposal as executed
+        proposal.did_execute = true;
+        proposal.executed_by = Some(ctx.accounts.executor.key());
+
         Ok(())
     }
 }
@@ -298,7 +346,7 @@ pub struct Proposition {
 #[derive(InitSpace)]
 pub struct ApproverVotes {
     key: Pubkey,
-    favour: bool
+    favour: bool,
 }
 
 #[account]
@@ -341,13 +389,4 @@ pub struct ExecuteProposal<'info> {
         constraint = helpers::has_permission(executor.key, EXECUTOR_POSITION, &multisig) @ ErrorCode::UserNotAuthorized,
     )]
     pub proposition: Account<'info, Proposition>,
-
-    #[account(
-        mut,
-        constraint = treasury.key() == multisig.treasury @ ErrorCode::InvalidTreasury,
-        seeds = [b"treasury", multisig.company_id.as_bytes()],
-        bump = multisig.treasury_bump, 
-    )]
-    /// CHECK: This is a PDA that will hold SOL and sign transactions
-    pub treasury: UncheckedAccount<'info>,
 }

@@ -22,4 +22,8 @@ pub enum ErrorCode {
     InsufficientTreasuryFunds,
     #[msg("User has already voted")]
     UserAlreadyVoted,
+    #[msg("Required vote count is not met")]
+    InsufficientVotes,
+    #[msg("This transaction already executed")]
+    TransactionAlreadyExecuted,
 }
