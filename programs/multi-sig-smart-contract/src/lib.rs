@@ -150,11 +150,10 @@ pub mod multi_sig_smart_contract {
 
     pub fn approve(ctx: Context<ApproveProposal>, is_approving: bool) -> Result<()> {
         let proposal = &mut ctx.accounts.proposition;
-      
 
-    let existing_vote_index = proposal.signers
-        .iter()
-        .position(|user| user.key == *ctx.accounts.approver.key);
+        let existing_vote_index = proposal.signers
+            .iter()
+            .position(|user| user.key == *ctx.accounts.approver.key);
 
         match existing_vote_index {
             Some(index) => {
@@ -171,7 +170,6 @@ pub mod multi_sig_smart_contract {
                     favour: is_approving
                 });
             }
-
         }
 
         Ok(())
