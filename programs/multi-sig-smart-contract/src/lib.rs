@@ -147,6 +147,39 @@ pub mod multi_sig_smart_contract {
 
         Ok(())
     }
+
+    pub fn approve(ctx: Context<ApproveProposal>, is_approving: bool) -> Result<()> {
+        let proposal = &mut ctx.accounts.proposition;
+      
+
+    let existing_vote_index = proposal.signers
+        .iter()
+        .position(|user| user.key == *ctx.accounts.approver.key);
+
+        match existing_vote_index {
+            Some(index) => {
+                // Check if the vote is same
+                if proposal.signers[index].favour == is_approving {
+                     return Err(ErrorCode::UserAlreadyVoted.into())
+                }
+                // Update existing vote
+                proposal.signers[index].favour = is_approving;
+            }
+            None => {
+                proposal.signers.push(ApproverVotes {
+                    key: *ctx.accounts.approver.key,
+                    favour: is_approving
+                });
+            }
+
+        }
+
+        Ok(())
+    }
+
+    pub fn execute(_ctx: Context<ExecuteProposal>) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl MultiSigAccount {
@@ -252,8 +285,9 @@ pub struct Proposition {
     pub accounts: Vec<TransactionAccount>, // For executing transaction
     #[max_len(1000)]
     pub data: Vec<u8>,
+
     #[max_len(20)]
-    pub signers: Vec<bool>,
+    pub signers: Vec<ApproverVotes>, // For users who approve transaction
 
     pub proposer: Pubkey,
     pub executed_by: Option<Pubkey>,
@@ -264,8 +298,58 @@ pub struct Proposition {
 
 #[account]
 #[derive(InitSpace)]
+pub struct ApproverVotes {
+    key: Pubkey,
+    favour: bool
+}
+
+#[account]
+#[derive(InitSpace)]
 pub struct TransactionAccount {
     pub pubkey: Pubkey,
     pub is_signer: bool,
     pub is_writable: bool,
+}
+
+#[derive(Accounts)]
+pub struct ApproveProposal<'info> {
+    #[account(mut)]
+    pub approver: Signer<'info>,
+
+    #[account(
+        constraint = multisig.is_user(&approver.key()) @ ErrorCode::UserNotAuthorized,
+    )]
+    pub multisig: Account<'info, MultiSigAccount>,
+
+    #[account(
+        mut,
+        constraint = helpers::has_permission(approver.key, APPROVER_POSITION, &multisig) @ ErrorCode::UserNotAuthorized,
+    )]
+    pub proposition: Account<'info, Proposition>,
+}
+
+#[derive(Accounts)]
+pub struct ExecuteProposal<'info> {
+    #[account(mut)]
+    pub executor: Signer<'info>,
+
+    #[account(
+        constraint = multisig.is_user(&executor.key()) @ ErrorCode::UserNotAuthorized,
+    )]
+    pub multisig: Account<'info, MultiSigAccount>,
+
+    #[account(
+        mut,
+        constraint = helpers::has_permission(executor.key, EXECUTOR_POSITION, &multisig) @ ErrorCode::UserNotAuthorized,
+    )]
+    pub proposition: Account<'info, Proposition>,
+
+    #[account(
+        mut,
+        constraint = treasury.key() == multisig.treasury @ ErrorCode::InvalidTreasury,
+        seeds = [b"treasury", multisig.company_id.as_bytes()],
+        bump = multisig.treasury_bump, 
+    )]
+    /// CHECK: This is a PDA that will hold SOL and sign transactions
+    pub treasury: UncheckedAccount<'info>,
 }

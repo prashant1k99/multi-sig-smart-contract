@@ -20,4 +20,6 @@ pub enum ErrorCode {
     InvalidCalculation,
     #[msg("Inufficient funds in treasury for action")]
     InsufficientTreasuryFunds,
+    #[msg("User has already voted")]
+    UserAlreadyVoted,
 }

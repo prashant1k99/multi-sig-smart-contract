@@ -1,6 +1,6 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
-import { program, proposer, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
+import { program, proposer, multiSigAccountKey, treasuryAccountKey, setup } from './base';
 
 describe("proposal testing", () => {
   before(() => {
