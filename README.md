@@ -24,6 +24,6 @@ This contract supports 4 Roles:
 - [x] Feature to initiate proposal/transaction
 - [x] Create Test Cases for propose transaction
 - [x] Feature to Approve proposal/transaction
-- [ ] Test cases for Approving proposal
+- [x] Test cases for Approving proposal
 - [x] Feature to Execute proposal/transaction
 - [ ] Test cases for Executing proposal/transaction

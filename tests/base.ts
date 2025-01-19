@@ -13,6 +13,7 @@ export const otherUser = Keypair.generate();
 export const proposer = Keypair.generate();
 export const approver = Keypair.generate();
 export const executor = Keypair.generate();
+export const randomUser = Keypair.generate();
 
 
 export const setup = () => {
@@ -32,4 +33,8 @@ export const setup = () => {
   ], program.programId)
 }
 
-
+export const addBalance = async (key: PublicKey, balance: number) => {
+  const tx = await provider.connection.requestAirdrop(key, balance)
+  await provider.connection.confirmTransaction(tx, "confirmed");
+  return tx
+}

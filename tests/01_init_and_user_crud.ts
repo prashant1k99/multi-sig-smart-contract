@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
-import { provider, program, payer, proposer, approver, executor, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup } from './base';
+import { provider, program, payer, proposer, approver, executor, otherUser, companyID, multiSigAccountKey, treasuryAccountKey, setup, addBalance } from './base';
 
 enum Roles {
   PROPOSER,
@@ -42,13 +42,7 @@ describe("MultiSig init and Owner action Tests", () => {
     const initialTreasuryAccountBalance = await provider.connection.getBalance(treasuryAccountKey);
 
     const toAdd = 10000 * LAMPORTS_PER_SOL;
-    const tx = await provider.connection.requestAirdrop(
-      treasuryAccountKey,
-      toAdd // 100 SOL
-    );
-
-    // Wait for confirmation
-    await provider.connection.confirmTransaction(tx, "confirmed");
+    await addBalance(treasuryAccountKey, toAdd)
 
     const balance = await provider.connection.getBalance(treasuryAccountKey);
     assert.equal(initialTreasuryAccountBalance + toAdd, balance)
@@ -99,13 +93,7 @@ describe("MultiSig init and Owner action Tests", () => {
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
 
-    const tx = await provider.connection.requestAirdrop(
-      proposer.publicKey,
-      10 * LAMPORTS_PER_SOL // 10 SOL
-    );
-
-    // Wait for confirmation
-    await provider.connection.confirmTransaction(tx, "confirmed");
+    await addBalance(proposer.publicKey, 10 * LAMPORTS_PER_SOL)
   })
 
   it("Should add approver users", async () => {
@@ -129,13 +117,8 @@ describe("MultiSig init and Owner action Tests", () => {
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should have approver role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should not have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
-    const tx = await provider.connection.requestAirdrop(
-      approver.publicKey,
-      10 * LAMPORTS_PER_SOL // 10 SOL
-    );
 
-    // Wait for confirmation
-    await provider.connection.confirmTransaction(tx, "confirmed");
+    await addBalance(approver.publicKey, 10 * LAMPORTS_PER_SOL)
   })
 
   it("Should add executor users", async () => {
@@ -159,13 +142,8 @@ describe("MultiSig init and Owner action Tests", () => {
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.APPROVER), "User should not have approver role");
     assert.isTrue(checkRole(Number(addedUser.roles), Roles.EXECUTOR), "User should have executor role");
     assert.isFalse(checkRole(Number(addedUser.roles), Roles.OWNER), "User should not have owner role")
-    const tx = await provider.connection.requestAirdrop(
-      executor.publicKey,
-      10 * LAMPORTS_PER_SOL // 10 SOL
-    );
 
-    // Wait for confirmation
-    await provider.connection.confirmTransaction(tx, "confirmed");
+    await addBalance(executor.publicKey, 10 * LAMPORTS_PER_SOL)
   })
 
   it("Should not add same user again", async () => {
@@ -193,7 +171,6 @@ describe("MultiSig init and Owner action Tests", () => {
     const anotherRandomUser = Keypair.generate();
     const tx = await provider.connection.requestAirdrop(randomUser.publicKey, 0.01 * LAMPORTS_PER_SOL)
     await provider.connection.confirmTransaction(tx, "confirmed");
-    console.log("Random User Balance: ", await provider.connection.getBalance(randomUser.publicKey))
     try {
       await program.methods.addUser(
         anotherRandomUser.publicKey,
@@ -217,8 +194,6 @@ describe("MultiSig init and Owner action Tests", () => {
   it("should not allow non owner to add user", async () => {
     const tx = await provider.connection.requestAirdrop(otherUser.publicKey, 0.01 * LAMPORTS_PER_SOL)
     await provider.connection.confirmTransaction(tx, "confirmed");
-
-    console.log("Proposer User Balance: ", otherUser.publicKey.toString(), await provider.connection.getBalance(otherUser.publicKey))
 
     const randomUser = Keypair.generate();
     try {
@@ -311,6 +286,18 @@ describe("MultiSig init and Owner action Tests", () => {
   })
   it("should update threshold with valid value", async () => {
     await program.methods.updateThreshold(
+      3
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+    assert.equal(multiSigAccount.threshold, 3)
+  })
+  it("Should decrease threshold value", async () => {
+    await program.methods.updateThreshold(
       2
     ).accounts({
       multisig: multiSigAccountKey
@@ -320,17 +307,5 @@ describe("MultiSig init and Owner action Tests", () => {
 
     const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
     assert.equal(multiSigAccount.threshold, 2)
-  })
-  it("Should decrease threshold value", async () => {
-    await program.methods.updateThreshold(
-      1
-    ).accounts({
-      multisig: multiSigAccountKey
-    }).rpc({
-      commitment: "confirmed"
-    })
-
-    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
-    assert.equal(multiSigAccount.threshold, 1)
   })
 });
