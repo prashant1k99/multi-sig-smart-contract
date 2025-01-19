@@ -1,6 +1,6 @@
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
-import { assert, expect } from "chai";
-import { program, proposer, multiSigAccountKey, treasuryAccountKey, setup, approver, provider, otherUser, executor, randomUser } from './base';
+import { PublicKey } from "@solana/web3.js";
+import { assert } from "chai";
+import { program, proposer, multiSigAccountKey, approver, executor, randomUser } from './base';
 
 describe("Approver Testing", () => {
   let proposition: PublicKey

@@ -1,6 +1,6 @@
 import { LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
-import { program, proposer, multiSigAccountKey, treasuryAccountKey, setup, approver, provider, otherUser, randomUser, addBalance } from './base';
+import { program, proposer, multiSigAccountKey, treasuryAccountKey, setup, approver, otherUser, randomUser, addBalance } from './base';
 
 describe("Proposal Testing", () => {
   before(() => {
