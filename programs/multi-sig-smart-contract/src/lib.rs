@@ -371,7 +371,10 @@ pub struct ApproveProposal<'info> {
     )]
     pub multisig: Account<'info, MultiSigAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = !proposition.did_execute @ ErrorCode::TransactionAlreadyExecuted
+    )]
     pub proposition: Account<'info, Proposition>,
 }
 
