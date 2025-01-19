@@ -42,7 +42,6 @@ pub mod multi_sig_smart_contract {
         multisig.treasury_bump = ctx.bumps.treasury;
         multisig.bump = ctx.bumps.multisig;
         multisig.transaction_count = 0;
-
         Ok(())
     }
 
@@ -60,7 +59,7 @@ pub mod multi_sig_smart_contract {
 
         multisig.users.push(UserInfo {
             key: user_key,
-            roles: helpers::give_numeric_value_for_role(roles),
+            roles: helpers::give_numeric_value_for_role(roles.clone()),
         });
         Ok(())
     }
@@ -109,7 +108,6 @@ pub mod multi_sig_smart_contract {
             .filter(|&user| helpers::check_role(user, APPROVER_POSITION))
             .count();
 
-        msg!("Accprover count: {}", approver_count);
         require!(
             threshold <= (approver_count as u8),
             ErrorCode::ThresholdOverflow
@@ -128,12 +126,6 @@ pub mod multi_sig_smart_contract {
     ) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
-        // Check if the signer has correct permission to propose transaction
-        require!(
-            helpers::has_permission(&ctx.accounts.proposer.key, PROPOSER_POSITION, multisig),
-            ErrorCode::UserNotAuthorized
-        );
-
         *ctx.accounts.proposition = Proposition {
             executed_by: None,
             proposer: *ctx.accounts.proposer.key,
@@ -146,7 +138,6 @@ pub mod multi_sig_smart_contract {
         };
 
         multisig.transaction_count += 1;
-
         Ok(())
     }
 
@@ -189,6 +180,7 @@ pub mod multi_sig_smart_contract {
             .iter()
             .filter(|vote| vote.favour == true)
             .count() as u8;
+
         require!(
             favoured_vote_count >= multisig.threshold,
             ErrorCode::InsufficientVotes
@@ -234,6 +226,15 @@ impl MultiSigAccount {
     }
     pub fn is_owner(&self, user_key: &Pubkey) -> bool {
         helpers::has_permission(user_key, OWNER_POSITION, self)
+    }
+    pub fn is_proposer(&self, user_key: &Pubkey) -> bool {
+        helpers::has_permission(user_key, PROPOSER_POSITION, self)
+    }
+    pub fn is_approver(&self, user_key: &Pubkey) -> bool {
+        helpers::has_permission(user_key, APPROVER_POSITION, self)
+    }
+    pub fn is_executor(&self, user_key: &Pubkey) -> bool {
+        helpers::has_permission(user_key, EXECUTOR_POSITION, self)
     }
 }
 
@@ -305,7 +306,10 @@ pub struct InitProposal<'info> {
     #[account(mut)]
     pub proposer: Signer<'info>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = multisig.is_proposer(&proposer.key()) @ ErrorCode::UserNotAuthorized
+    )]
     pub multisig: Account<'info, MultiSigAccount>,
 
     #[account(
@@ -363,14 +367,11 @@ pub struct ApproveProposal<'info> {
     pub approver: Signer<'info>,
 
     #[account(
-        constraint = multisig.is_user(&approver.key()) @ ErrorCode::UserNotAuthorized,
+        constraint = multisig.is_approver(&approver.key()) @ ErrorCode::UserNotAuthorized
     )]
     pub multisig: Account<'info, MultiSigAccount>,
 
-    #[account(
-        mut,
-        constraint = helpers::has_permission(approver.key, APPROVER_POSITION, &multisig) @ ErrorCode::UserNotAuthorized,
-    )]
+    #[account(mut)]
     pub proposition: Account<'info, Proposition>,
 }
 
@@ -380,13 +381,13 @@ pub struct ExecuteProposal<'info> {
     pub executor: Signer<'info>,
 
     #[account(
-        constraint = multisig.is_user(&executor.key()) @ ErrorCode::UserNotAuthorized,
+        constraint = multisig.is_executor(&executor.key()) @ ErrorCode::UserNotAuthorized,
     )]
     pub multisig: Account<'info, MultiSigAccount>,
 
     #[account(
         mut,
-        constraint = helpers::has_permission(executor.key, EXECUTOR_POSITION, &multisig) @ ErrorCode::UserNotAuthorized,
+        constraint = !proposition.did_execute @ ErrorCode::TransactionAlreadyExecuted
     )]
     pub proposition: Account<'info, Proposition>,
 }

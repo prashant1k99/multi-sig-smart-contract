@@ -9,12 +9,11 @@ pub fn give_numeric_value_for_role(roles: Vec<u8>) -> u8 {
     roles.iter().fold(0u8, |result, &role| result | (1 << role))
 }
 
-pub fn has_permission(curr_user: &Pubkey, permission: u8, multisig: &MultiSigAccount) -> bool {
+pub fn has_permission(user_key: &Pubkey, role_position: u8, multisig: &MultiSigAccount) -> bool {
     multisig
         .users
         .iter()
-        .find(|&user| user.key == *curr_user)
-        .map_or(false, |user| (user.roles >> permission) & 1 == 1)
+        .any(|user| user.key == *user_key && ((user.roles >> role_position) & 1) == 1)
 }
 
 pub fn are_valid_roles(input_roles: &Vec<u8>) -> bool {
