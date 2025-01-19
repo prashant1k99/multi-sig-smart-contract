@@ -13,7 +13,7 @@ const checkRole = (role: number, forRole: Roles): boolean => {
   return (role & (1 << forRole)) !== 0;
 }
 
-describe("mult sig init and add user", () => {
+describe("MultiSig init and Owner action Tests", () => {
   before(() => {
     setup()
   })
