@@ -127,7 +127,7 @@ describe("Proposal Testing", () => {
       isWritable: true
     }));
 
-    const tx = await provider.connection.requestAirdrop(otherUser.publicKey, 0.01 * LAMPORTS_PER_SOL)
+    const tx = await provider.connection.requestAirdrop(otherUser.publicKey, LAMPORTS_PER_SOL)
     await provider.connection.confirmTransaction(tx, "confirmed");
 
     await program.methods.propose(

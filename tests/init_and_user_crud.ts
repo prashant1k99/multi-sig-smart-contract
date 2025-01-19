@@ -309,4 +309,28 @@ describe("MultiSig init and Owner action Tests", () => {
       );
     }
   })
+  it("should update threshold with valid value", async () => {
+    await program.methods.updateThreshold(
+      2
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+    assert.equal(multiSigAccount.threshold, 2)
+  })
+  it("Should decrease threshold value", async () => {
+    await program.methods.updateThreshold(
+      1
+    ).accounts({
+      multisig: multiSigAccountKey
+    }).rpc({
+      commitment: "confirmed"
+    })
+
+    const multiSigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey)
+    assert.equal(multiSigAccount.threshold, 1)
+  })
 });
