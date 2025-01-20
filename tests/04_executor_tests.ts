@@ -1,6 +1,6 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
-import { approver, executor, multiSigAccountKey, otherUser, program, proposer } from "./base";
+import { approver, executor, multiSigAccountKey, otherUser, program, proposer, treasuryAccountKey } from "./base";
 
 // test cases for executor role.
 describe("Execute of Proposal", async () => {
@@ -17,7 +17,8 @@ describe("Execute of Proposal", async () => {
       await program.methods.execute().accounts({
         executor: executor.publicKey,
         proposition,
-        multisig: multiSigAccountKey
+        multisig: multiSigAccountKey,
+        treasury: treasuryAccountKey
       }).signers([executor]).rpc({
         commitment: "confirmed"
       })
@@ -47,7 +48,8 @@ describe("Execute of Proposal", async () => {
       await program.methods.execute().accounts({
         executor: proposer.publicKey,
         proposition,
-        multisig: multiSigAccountKey
+        multisig: multiSigAccountKey,
+        treasury: treasuryAccountKey
       }).signers([proposer]).rpc({
         commitment: "confirmed"
       })
@@ -68,6 +70,7 @@ describe("Execute of Proposal", async () => {
         executor: approver.publicKey,
         proposition,
         multisig: multiSigAccountKey,
+        treasury: treasuryAccountKey
       }).signers([approver]).rpc({
         commitment: "confirmed"
       })
@@ -87,9 +90,9 @@ describe("Execute of Proposal", async () => {
     const remainingAccounts = [
       // System Program needs to be included
       {
-        pubkey: SystemProgram.programId,
+        pubkey: treasuryAccountKey,
         isWritable: false,
-        isSigner: false
+        isSigner: true
       },
       // Include the original accounts from the proposition
       ...propositionData.accounts
@@ -99,12 +102,13 @@ describe("Execute of Proposal", async () => {
       executor: executor.publicKey,
       proposition,
       multisig: multiSigAccountKey,
+      treasury: treasuryAccountKey
     })
       .remainingAccounts(remainingAccounts)
       .signers([executor])
       .rpc({
         commitment: "confirmed",
-        skipPreflight: true
+        skipPreflight: false
       })
 
     const updatedProposition = await program.account.proposition.fetch(proposition);

@@ -223,6 +223,9 @@ pub mod multi_sig_smart_contract {
                 }),
         );
 
+        msg!("Seeds: {:?}", treasury_seeds);
+        msg!("Accounts: {:?}", transaction_accounts);
+
         let instruction = Instruction {
             program_id: proposal.program_id,
             accounts: transaction_accounts,
@@ -232,7 +235,10 @@ pub mod multi_sig_smart_contract {
         // Execute the instruction with treasury as signer
         solana_program::program::invoke_signed(
             &instruction,
-            ctx.remaining_accounts,
+            &[
+                ctx.accounts.treasury.to_account_info(),
+                ctx.accounts.executor.to_account_info(),
+            ],
             &[treasury_seeds],
         )?;
 
@@ -418,14 +424,7 @@ pub struct ExecuteProposal<'info> {
     )]
     pub proposition: Account<'info, Proposition>,
 
-    #[account(
-        mut,
-        seeds = [
-            b"treasury",
-            multisig.company_id.as_bytes()
-        ],
-        bump = multisig.treasury_bump
-    )]
+    #[account(mut)]
     /// CHECK: This is a PDA that will hold SOL and sign transactions
     pub treasury: UncheckedAccount<'info>,
 }
