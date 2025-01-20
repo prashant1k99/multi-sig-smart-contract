@@ -24,16 +24,10 @@ describe("Proposal Testing", () => {
       Buffer.from([multisigAccount.transactionCount])
     ], program.programId)
 
-    const modifiedKeys = simpleTransaction.keys.map(k => ({
-      pubkey: k.pubkey,
-      isSigner: false,
-      isWritable: k.pubkey.equals(treasuryAccountKey) || k.pubkey.equals(proposer.publicKey)
-    }));
-
     // Propose with
     await program.methods.propose(
       SystemProgram.programId,
-      modifiedKeys,
+      simpleTransaction.keys,
       simpleTransaction.data,
     ).accounts({
       multisig: multiSigAccountKey,
@@ -50,7 +44,7 @@ describe("Proposal Testing", () => {
     assert.isEmpty(proposition.signers)
     assert.isFalse(proposition.didExecute, "didExecute should be false for newly created proposition")
     assert.deepEqual(proposition.data, simpleTransaction.data)
-    assert.deepEqual(proposition.accounts, modifiedKeys)
+    assert.deepEqual(proposition.accounts, simpleTransaction.keys)
   })
 
   it("should not create a proposal when approver tries", async () => {
@@ -121,17 +115,18 @@ describe("Proposal Testing", () => {
       Buffer.from([multisigAccount.transactionCount])
     ], program.programId);
 
-    const modifiedKeys = simpleTransaction.keys.map(k => ({
-      pubkey: k.pubkey,
-      isSigner: false,
-      isWritable: true
-    }));
+    // const modifiedKeys = simpleTransaction.keys.map(k => ({
+    //   pubkey: k.pubkey,
+    //   isSigner: false,
+    //   isWritable: true
+    // }));
 
     await addBalance(otherUser.publicKey, LAMPORTS_PER_SOL)
 
     await program.methods.propose(
       SystemProgram.programId,
-      modifiedKeys,
+      // modifiedKeys,
+      simpleTransaction.keys,
       simpleTransaction.data,
     )
       .accounts({
@@ -150,7 +145,8 @@ describe("Proposal Testing", () => {
     assert.isEmpty(proposition.signers)
     assert.isFalse(proposition.didExecute, "didExecute should be false for newly created proposition")
     assert.deepEqual(proposition.data, simpleTransaction.data)
-    assert.deepEqual(proposition.accounts, modifiedKeys)
+    // assert.deepEqual(proposition.accounts, modifiedKeys)
+    assert.deepEqual(proposition.accounts, simpleTransaction.keys)
   })
 
   it("should not create proposal by random user", async () => {

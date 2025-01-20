@@ -35,6 +35,8 @@ describe("MultiSig init and Owner action Tests", () => {
 
     const treasuryBalance = await provider.connection.getBalance(treasuryAccountKey);
     assert.equal(Math.floor(treasuryBalance / LAMPORTS_PER_SOL), 0)
+    const treasuryAccountInfo = await provider.connection.getAccountInfo(treasuryAccountKey);
+    console.log("Treasury Account Owner:", treasuryAccountInfo);
   });
 
   it("should add money to treasury account", async () => {

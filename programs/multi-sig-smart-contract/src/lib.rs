@@ -172,6 +172,7 @@ pub mod multi_sig_smart_contract {
     pub fn execute(ctx: Context<ExecuteProposal>) -> Result<()> {
         let multisig = &ctx.accounts.multisig;
         let proposal = &mut ctx.accounts.proposition;
+        let treasury = &ctx.accounts.treasury;
 
         require!(!proposal.did_execute, ErrorCode::TransactionAlreadyExecuted);
 
@@ -181,36 +182,59 @@ pub mod multi_sig_smart_contract {
             .filter(|vote| vote.favour == true)
             .count() as u8;
 
+        msg!(
+            "Executor Id: {} \n TreasuryAccount ID: {} \n Proposal Id: {}",
+            &ctx.accounts.executor.key,
+            &ctx.accounts.treasury.key,
+            proposal.key()
+        );
+
         require!(
             favoured_vote_count >= multisig.threshold,
             ErrorCode::InsufficientVotes
         );
 
-        // Try executing the proposal
-
-        let seeds = &[
+        // Create seeds for PDA signer
+        let treasury_seeds = &[
             b"treasury",
             multisig.company_id.as_bytes(),
             &[multisig.treasury_bump],
         ];
-        let signer = &[&seeds[..]];
+
+        let mut transaction_accounts = Vec::new();
+
+        // Add treasury as the first account if it needs to sign
+        transaction_accounts.push(AccountMeta {
+            pubkey: treasury.key(),
+            is_signer: true,
+            is_writable: true,
+        });
+
+        // Add remaining accounts from the proposal
+        transaction_accounts.extend(
+            proposal
+                .accounts
+                .iter()
+                .filter(|account| account.pubkey == *treasury.key)
+                .map(|acc| AccountMeta {
+                    pubkey: acc.pubkey,
+                    is_signer: false, // Remove original signers since treasury will sign
+                    is_writable: acc.is_writable,
+                }),
+        );
 
         let instruction = Instruction {
             program_id: proposal.program_id,
-            accounts: proposal
-                .accounts
-                .iter()
-                .map(|acc| AccountMeta {
-                    pubkey: acc.pubkey,
-                    is_signer: acc.is_signer,
-                    is_writable: acc.is_writable,
-                })
-                .collect(),
+            accounts: transaction_accounts,
             data: proposal.data.clone(),
         };
 
         // Execute the instruction with treasury as signer
-        solana_program::program::invoke_signed(&instruction, ctx.remaining_accounts, signer)?;
+        solana_program::program::invoke_signed(
+            &instruction,
+            ctx.remaining_accounts,
+            &[treasury_seeds],
+        )?;
 
         // Mark proposal as executed
         proposal.did_execute = true;
@@ -393,4 +417,15 @@ pub struct ExecuteProposal<'info> {
         constraint = !proposition.did_execute @ ErrorCode::TransactionAlreadyExecuted
     )]
     pub proposition: Account<'info, Proposition>,
+
+    #[account(
+        mut,
+        seeds = [
+            b"treasury",
+            multisig.company_id.as_bytes()
+        ],
+        bump = multisig.treasury_bump
+    )]
+    /// CHECK: This is a PDA that will hold SOL and sign transactions
+    pub treasury: UncheckedAccount<'info>,
 }
