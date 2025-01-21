@@ -2,7 +2,9 @@ pub mod error;
 pub mod helpers;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed_unchecked};
+use anchor_lang::solana_program::{
+    instruction::Instruction, program::invoke_signed, system_instruction::transfer,
+};
 use error::ErrorCode;
 
 const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
@@ -11,12 +13,10 @@ const APPROVER_POSITION: u8 = 1;
 const EXECUTOR_POSITION: u8 = 2;
 const OWNER_POSITION: u8 = 3;
 
-declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
+declare_id!("9zcFR2MWpuJSP7N6PgDeCAGZJ7C2EzzN5hYDLvy7AF4T");
 
 #[program]
 pub mod multi_sig_smart_contract {
-    use anchor_lang::solana_program::program::invoke_signed;
-
     use super::*;
 
     pub fn initialize_project(ctx: Context<InitializeMultiSig>, company_id: String) -> Result<()> {
@@ -119,20 +119,22 @@ pub mod multi_sig_smart_contract {
         Ok(())
     }
 
-    pub fn propose(
-        ctx: Context<InitProposal>,
-        pid: Pubkey,
-        accounts: Vec<TransactionAccount>,
-        data: Vec<u8>,
-    ) -> Result<()> {
+    pub fn propose(ctx: Context<InitProposal>, proposal_type: ProposalType) -> Result<()> {
         let multisig = &mut ctx.accounts.multisig;
 
+        match &proposal_type {
+            ProposalType::Transfer { amount, .. } => {
+                require!(*amount > 0, ErrorCode::InvalidTransferAmount);
+            }
+            ProposalType::ProgramInstruction { accounts, .. } => {
+                require!(!accounts.is_empty(), ErrorCode::InvalidProgramInstruction);
+            }
+        }
+
         *ctx.accounts.proposition = Proposition {
+            proposal_type,
             executed_by: None,
             proposer: *ctx.accounts.proposer.key,
-            program_id: pid,
-            accounts,
-            data,
             bump: ctx.bumps.proposition,
             signers: vec![],
             did_execute: false,
@@ -202,48 +204,58 @@ pub mod multi_sig_smart_contract {
             &[multisig.treasury_bump],
         ];
 
-        let mut transaction_accounts = Vec::new();
+        match &proposal.proposal_type {
+            ProposalType::Transfer {
+                destination,
+                amount,
+            } => {
+                let transfer_ix = transfer(&treasury.key(), destination, *amount);
+                invoke_signed(
+                    &transfer_ix,
+                    &[treasury.to_account_info()],
+                    &[treasury_seeds],
+                )?;
+            }
+            ProposalType::ProgramInstruction {
+                accounts,
+                data,
+                program_id,
+            } => {
+                let mut transaction_accounts = Vec::new();
 
-        // Add treasury as the first account if it needs to sign
-        transaction_accounts.push(AccountMeta {
-            pubkey: treasury.key(),
-            is_signer: true,
-            is_writable: true,
-        });
+                // Add treasury as the first account if it needs to sign
+                transaction_accounts.push(AccountMeta {
+                    pubkey: treasury.key(),
+                    is_signer: true,
+                    is_writable: true,
+                });
 
-        for acc in proposal.accounts.iter() {
-            msg!("=======================");
-            msg!("Proposal Accouts: {:?}", acc.pubkey);
-            msg!("Proposal is_signer: {:?}", acc.is_signer);
-            msg!("Proposal is_writable: {:?}", acc.is_writable);
-            msg!("=======================");
+                // Add remaining accounts from the proposal
+                transaction_accounts.extend(
+                    accounts
+                        .iter()
+                        .filter(|account| account.pubkey != *treasury.key) // removing
+                        // treasury account if it is already part of the list
+                        .map(|acc| AccountMeta {
+                            pubkey: acc.pubkey,
+                            is_signer: false, // Remove original signers since treasury will sign
+                            is_writable: acc.is_writable,
+                        }),
+                );
+
+                msg!("Seeds: {:?}", treasury_seeds);
+                msg!("Accounts: {:?}", transaction_accounts);
+
+                // Execute the instruction with treasury as signer
+                let instruction = Instruction {
+                    program_id: *program_id,
+                    accounts: transaction_accounts,
+                    data: data.clone(),
+                };
+                invoke_signed(&instruction, ctx.remaining_accounts, &[treasury_seeds])?;
+            }
         }
-        // Add remaining accounts from the proposal
-        transaction_accounts.extend(
-            proposal
-                .accounts
-                .iter()
-                .filter(|account| account.pubkey != *treasury.key) // removing
-                // treasury account if it is already part of the list
-                .map(|acc| AccountMeta {
-                    pubkey: acc.pubkey,
-                    is_signer: false, // Remove original signers since treasury will sign
-                    is_writable: acc.is_writable,
-                }),
-        );
 
-        msg!("Seeds: {:?}", treasury_seeds);
-        msg!("Accounts: {:?}", transaction_accounts);
-
-        let instruction = Instruction {
-            program_id: proposal.program_id,
-            accounts: transaction_accounts,
-            data: proposal.data.clone(),
-        };
-        msg!("Instruction: {:?}", instruction);
-
-        // Execute the instruction with treasury as signer
-        invoke_signed(&instruction, ctx.remaining_accounts, &[treasury_seeds])?;
         // Mark proposal as executed
         proposal.did_execute = true;
         proposal.executed_by = Some(ctx.accounts.executor.key());
@@ -363,19 +375,29 @@ pub struct InitProposal<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct Proposition {
-    #[max_len(3)]
-    pub accounts: Vec<TransactionAccount>, // For executing transaction
-    #[max_len(1000)]
-    pub data: Vec<u8>,
-
+    pub proposal_type: ProposalType,
     #[max_len(20)]
     pub signers: Vec<ApproverVotes>, // For users who approve transaction
 
     pub proposer: Pubkey,
     pub executed_by: Option<Pubkey>,
-    pub program_id: Pubkey,
     pub did_execute: bool,
     pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub enum ProposalType {
+    Transfer {
+        destination: Pubkey,
+        amount: u64,
+    },
+    ProgramInstruction {
+        #[max_len(3)]
+        accounts: Vec<TransactionAccount>,
+        #[max_len(1000)]
+        data: Vec<u8>,
+        program_id: Pubkey,
+    },
 }
 
 #[account]

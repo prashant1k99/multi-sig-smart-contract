@@ -26,4 +26,8 @@ pub enum ErrorCode {
     InsufficientVotes,
     #[msg("This transaction already executed")]
     TransactionAlreadyExecuted,
+    #[msg("Invalid transfer amount")]
+    InvalidTransferAmount,
+    #[msg("Invalid program instruction")]
+    InvalidProgramInstruction,
 }
