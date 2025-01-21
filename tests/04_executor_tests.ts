@@ -1,4 +1,4 @@
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { AccountMeta, PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
 import { approver, executor, multiSigAccountKey, otherUser, program, proposer, treasuryAccountKey } from "./base";
 
@@ -8,7 +8,7 @@ describe("Execute of Proposal", async () => {
   let propositionData;
   before(async () => {
     const propositions = await program.account.proposition.all();
-    propositionData = propositions[0].account
+    propositionData = propositions[0].account.proposalType.transfer
     proposition = propositions[0].publicKey
   })
   // 1. Try to execute a proposal which does not have complete amount of proposals
@@ -87,21 +87,22 @@ describe("Execute of Proposal", async () => {
 
   // 4. Execute with Executor role
   it("should execute the proposal as it has correct vote count", async () => {
-    const multisig = await program.account.multiSigAccount.fetch(multiSigAccountKey);
-    const treasury = multisig.treasury.toString()
-    console.log("App treasury ID: ", treasury)
-    const remainingAccounts = propositionData.accounts.map(acc => {
-      return {
-        ...acc,
-        isSigner: false
-      }
+    const remainingAccounts: AccountMeta[] = []
+    remainingAccounts.push({
+      pubkey: treasuryAccountKey,
+      isSigner: false,
+      isWritable: true,
+    })
+    remainingAccounts.push({
+      pubkey: propositionData.destination,
+      isSigner: false,
+      isWritable: true
     })
     remainingAccounts.push({
       pubkey: SystemProgram.programId,
+      isSigner: false,
       isWritable: false,
-      isSigner: false
-    });
-    console.log(propositionData.accounts.forEach(acc => console.log(acc.pubkey.toString(), acc.isWritable, acc.isSigner)))
+    })
     const txSignature = await program.methods.execute().accounts({
       executor: executor.publicKey,
       proposition,

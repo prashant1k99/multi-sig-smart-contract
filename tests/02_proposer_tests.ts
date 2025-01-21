@@ -1,22 +1,12 @@
 import { LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import BN from "bn.js";
 import { assert } from "chai";
-import { program, proposer, multiSigAccountKey, treasuryAccountKey, setup, approver, otherUser, randomUser, addBalance } from './base';
+import { program, proposer, multiSigAccountKey, treasuryAccountKey, approver, otherUser, randomUser, addBalance } from './base';
 
 describe("Proposal Testing", () => {
-  before(() => {
-    setup()
-  })
-
   it("should create a proposal", async () => {
     const multisigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey);
     assert.exists(multisigAccount, "Multi Sig account should exist")
-
-    // Transaction to propose
-    const simpleTransaction = SystemProgram.transfer({
-      fromPubkey: treasuryAccountKey,
-      toPubkey: proposer.publicKey,
-      lamports: 100000,
-    })
 
     const [propositionKey] = PublicKey.findProgramAddressSync([
       Buffer.from("proposition"),
@@ -24,27 +14,28 @@ describe("Proposal Testing", () => {
       Buffer.from([multisigAccount.transactionCount])
     ], program.programId)
 
-    // Propose with
     await program.methods.propose(
-      SystemProgram.programId,
-      simpleTransaction.keys,
-      simpleTransaction.data,
-    ).accounts({
-      multisig: multiSigAccountKey,
-      proposer: proposer.publicKey,
-      proposition: propositionKey,
-    }).signers([proposer]).rpc({
-      commitment: "confirmed",
-      skipPreflight: true
-    })
+      {
+        transfer: {
+          destination: proposer.publicKey,
+          amount: new BN(1_000_000)
+        }
+      }).accounts({
+        multisig: multiSigAccountKey,
+        proposer: proposer.publicKey,
+        proposition: propositionKey,
+      }).signers([proposer]).rpc({
+        commitment: "confirmed",
+        skipPreflight: true
+      })
 
     const proposition = await program.account.proposition.fetch(propositionKey);
     assert.exists(proposition, "Proposition should be created");
     assert.equal(proposition.proposer.toString(), proposer.publicKey.toString())
     assert.isEmpty(proposition.signers)
     assert.isFalse(proposition.didExecute, "didExecute should be false for newly created proposition")
-    assert.deepEqual(proposition.data, simpleTransaction.data)
-    assert.deepEqual(proposition.accounts, simpleTransaction.keys)
+    assert.deepEqual(proposition.proposalType.transfer.destination, proposer.publicKey)
+    assert.deepEqual(proposition.proposalType.transfer.amount.toNumber(), 1_000_000)
   })
 
   it("should not create a proposal when approver tries", async () => {
@@ -72,9 +63,12 @@ describe("Proposal Testing", () => {
 
     try {
       await program.methods.propose(
-        SystemProgram.programId,
-        modifiedKeys,
-        simpleTransaction.data,
+        {
+          transfer: {
+            destination: proposer.publicKey,
+            amount: new BN(1_000_000)
+          }
+        }
       )
         .accounts({
           multisig: multiSigAccountKey,
@@ -102,32 +96,21 @@ describe("Proposal Testing", () => {
     const multisigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey);
     assert.exists(multisigAccount, "Multi Sig account should exist")
 
-    // Transaction to propose
-    const simpleTransaction = SystemProgram.transfer({
-      fromPubkey: treasuryAccountKey,
-      toPubkey: proposer.publicKey,
-      lamports: 100000,
-    });
-
     const [propositionKey] = PublicKey.findProgramAddressSync([
       Buffer.from("proposition"),
       multiSigAccountKey.toBytes(),
       Buffer.from([multisigAccount.transactionCount])
     ], program.programId);
 
-    // const modifiedKeys = simpleTransaction.keys.map(k => ({
-    //   pubkey: k.pubkey,
-    //   isSigner: false,
-    //   isWritable: true
-    // }));
-
     await addBalance(otherUser.publicKey, LAMPORTS_PER_SOL)
 
     await program.methods.propose(
-      SystemProgram.programId,
-      // modifiedKeys,
-      simpleTransaction.keys,
-      simpleTransaction.data,
+      {
+        transfer: {
+          destination: proposer.publicKey,
+          amount: new BN(1_000_000)
+        }
+      }
     )
       .accounts({
         multisig: multiSigAccountKey,
@@ -144,21 +127,13 @@ describe("Proposal Testing", () => {
     assert.equal(proposition.proposer.toString(), otherUser.publicKey.toString())
     assert.isEmpty(proposition.signers)
     assert.isFalse(proposition.didExecute, "didExecute should be false for newly created proposition")
-    assert.deepEqual(proposition.data, simpleTransaction.data)
-    // assert.deepEqual(proposition.accounts, modifiedKeys)
-    assert.deepEqual(proposition.accounts, simpleTransaction.keys)
+    assert.deepEqual(proposition.proposalType.transfer.destination, proposer.publicKey)
+    assert.deepEqual(proposition.proposalType.transfer.amount.toNumber(), 1_000_000)
   })
 
   it("should not create proposal by random user", async () => {
     const multisigAccount = await program.account.multiSigAccount.fetch(multiSigAccountKey);
     assert.exists(multisigAccount, "Multi Sig account should exist")
-
-    // Transaction to propose
-    const simpleTransaction = SystemProgram.transfer({
-      fromPubkey: treasuryAccountKey,
-      toPubkey: randomUser.publicKey,
-      lamports: 100000,
-    });
 
     await addBalance(randomUser.publicKey, 0.1 * LAMPORTS_PER_SOL);
 
@@ -168,17 +143,14 @@ describe("Proposal Testing", () => {
       Buffer.from([multisigAccount.transactionCount])
     ], program.programId);
 
-    const modifiedKeys = simpleTransaction.keys.map(k => ({
-      pubkey: k.pubkey,
-      isSigner: false,
-      isWritable: true
-    }));
-
     try {
       await program.methods.propose(
-        SystemProgram.programId,
-        modifiedKeys,
-        simpleTransaction.data,
+        {
+          transfer: {
+            destination: proposer.publicKey,
+            amount: new BN(1_000_000)
+          }
+        }
       )
         .accounts({
           multisig: multiSigAccountKey,
