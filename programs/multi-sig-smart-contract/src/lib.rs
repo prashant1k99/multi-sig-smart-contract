@@ -2,6 +2,7 @@ pub mod error;
 pub mod helpers;
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed_unchecked};
 use error::ErrorCode;
 
 const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
@@ -14,7 +15,7 @@ declare_id!("CyCee1ukFyDgRndFMW84d2nstCktbyUBzkpMVcHgX28d");
 
 #[program]
 pub mod multi_sig_smart_contract {
-    use anchor_lang::solana_program::{self, instruction::Instruction};
+    use anchor_lang::solana_program::program::invoke_signed;
 
     use super::*;
 
@@ -210,12 +211,20 @@ pub mod multi_sig_smart_contract {
             is_writable: true,
         });
 
+        for acc in proposal.accounts.iter() {
+            msg!("=======================");
+            msg!("Proposal Accouts: {:?}", acc.pubkey);
+            msg!("Proposal is_signer: {:?}", acc.is_signer);
+            msg!("Proposal is_writable: {:?}", acc.is_writable);
+            msg!("=======================");
+        }
         // Add remaining accounts from the proposal
         transaction_accounts.extend(
             proposal
                 .accounts
                 .iter()
-                .filter(|account| account.pubkey == *treasury.key)
+                .filter(|account| account.pubkey != *treasury.key) // removing
+                // treasury account if it is already part of the list
                 .map(|acc| AccountMeta {
                     pubkey: acc.pubkey,
                     is_signer: false, // Remove original signers since treasury will sign
@@ -231,17 +240,10 @@ pub mod multi_sig_smart_contract {
             accounts: transaction_accounts,
             data: proposal.data.clone(),
         };
+        msg!("Instruction: {:?}", instruction);
 
         // Execute the instruction with treasury as signer
-        solana_program::program::invoke_signed(
-            &instruction,
-            &[
-                ctx.accounts.treasury.to_account_info(),
-                ctx.accounts.executor.to_account_info(),
-            ],
-            &[treasury_seeds],
-        )?;
-
+        invoke_signed(&instruction, ctx.remaining_accounts, &[treasury_seeds])?;
         // Mark proposal as executed
         proposal.did_execute = true;
         proposal.executed_by = Some(ctx.accounts.executor.key());

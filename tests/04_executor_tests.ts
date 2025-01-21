@@ -87,18 +87,22 @@ describe("Execute of Proposal", async () => {
 
   // 4. Execute with Executor role
   it("should execute the proposal as it has correct vote count", async () => {
-    const remainingAccounts = [
-      // System Program needs to be included
-      {
-        pubkey: treasuryAccountKey,
-        isWritable: false,
-        isSigner: true
-      },
-      // Include the original accounts from the proposition
-      ...propositionData.accounts
-    ];
-
-    await program.methods.execute().accounts({
+    const multisig = await program.account.multiSigAccount.fetch(multiSigAccountKey);
+    const treasury = multisig.treasury.toString()
+    console.log("App treasury ID: ", treasury)
+    const remainingAccounts = propositionData.accounts.map(acc => {
+      return {
+        ...acc,
+        isSigner: false
+      }
+    })
+    remainingAccounts.push({
+      pubkey: SystemProgram.programId,
+      isWritable: false,
+      isSigner: false
+    });
+    console.log(propositionData.accounts.forEach(acc => console.log(acc.pubkey.toString(), acc.isWritable, acc.isSigner)))
+    const txSignature = await program.methods.execute().accounts({
       executor: executor.publicKey,
       proposition,
       multisig: multiSigAccountKey,
@@ -108,13 +112,19 @@ describe("Execute of Proposal", async () => {
       .signers([executor])
       .rpc({
         commitment: "confirmed",
-        skipPreflight: false
+        skipPreflight: true
+      }).catch((error) => {
+        console.log("Tranaasction error: ", error)
+        throw error
       })
+
+    console.log("Transaction Signature:", txSignature);
 
     const updatedProposition = await program.account.proposition.fetch(proposition);
     assert.isTrue(updatedProposition.didExecute, "It should have executed the transaction")
     // Check for the balance for which the transaction is happening
   })
+
   // 5. Try executing already executed proposal
   // 6. Try approving the already executed transaction
 })
