@@ -26,7 +26,7 @@ pub mod multi_sig_smart_contract {
         multisig.company_id = company_id;
 
         // Add initializer as the first owner with all permissions
-        multisig.users.push(UserInfo {
+        multisig.users[0] = UserInfo {
             key: initializer.key(),
             roles: helpers::give_numeric_value_for_role(vec![
                 OWNER_POSITION,
@@ -34,7 +34,7 @@ pub mod multi_sig_smart_contract {
                 APPROVER_POSITION,
                 EXECUTOR_POSITION,
             ]),
-        });
+        };
 
         // Set PDA authority for treasury
         multisig.treasury = ctx.accounts.treasury.key();
@@ -56,10 +56,14 @@ pub mod multi_sig_smart_contract {
         // Add Validation for roles
         require!(helpers::are_valid_roles(&roles), ErrorCode::UnsupportedRole);
 
-        multisig.users.push(UserInfo {
+        let current_count = multisig.get_user_count();
+        require!(current_count < 20, ErrorCode::MaxUsersReached);
+
+        multisig.users[current_count] = UserInfo {
             key: user_key,
             roles: helpers::give_numeric_value_for_role(roles.clone()),
-        });
+        };
+
         Ok(())
     }
 
@@ -69,7 +73,26 @@ pub mod multi_sig_smart_contract {
         // Check for user exists
         require!(multisig.is_user(&user_key), ErrorCode::UserDoesNotExists);
 
-        multisig.users.retain(|user| user.key != user_key);
+        let mut found_idx = None;
+        for (i, user) in multisig.users.iter().enumerate() {
+            if user.is_empty() {
+                break;
+            }
+            if user.key == user_key {
+                found_idx = Some(i);
+                break;
+            }
+        }
+
+        if let Some(idx) = found_idx {
+            // Shift remaining elements
+            let count = multisig.get_user_count();
+            for i in idx..(count - 1) {
+                multisig.users[i] = multisig.users[i + 1];
+            }
+            // Clear the last element
+            multisig.users[count - 1] = UserInfo::default();
+        }
 
         // Update threshold if the threshold is greater then approvel count then
         let approver_count = multisig
@@ -268,7 +291,10 @@ pub mod multi_sig_smart_contract {
 
 impl MultiSigAccount {
     pub fn is_user(&self, user_key: &Pubkey) -> bool {
-        self.users.iter().any(|user| user.key == *user_key)
+        self.users
+            .iter()
+            .take_while(|user| !user.is_empty())
+            .any(|user| user.key == *user_key)
     }
     pub fn is_owner(&self, user_key: &Pubkey) -> bool {
         helpers::has_permission(user_key, OWNER_POSITION, self)
@@ -281,6 +307,12 @@ impl MultiSigAccount {
     }
     pub fn is_executor(&self, user_key: &Pubkey) -> bool {
         helpers::has_permission(user_key, EXECUTOR_POSITION, self)
+    }
+    pub fn get_user_count(&self) -> usize {
+        self.users
+            .iter()
+            .take_while(|user| !user.is_empty())
+            .count()
     }
 }
 
@@ -319,7 +351,7 @@ pub struct MultiSigAccount {
     pub company_id: String, // Expected mongo ID
 
     #[max_len(20)]
-    pub users: Vec<UserInfo>,
+    pub users: [UserInfo; 20],
 
     pub threshold: u8,
     pub treasury: Pubkey,
@@ -329,10 +361,16 @@ pub struct MultiSigAccount {
 }
 
 #[account]
-#[derive(InitSpace)]
+#[derive(InitSpace, Default, Copy)]
 pub struct UserInfo {
     pub key: Pubkey,
     pub roles: u8,
+}
+
+impl UserInfo {
+    pub fn is_empty(&self) -> bool {
+        self.key == Pubkey::default() && self.roles == 0
+    }
 }
 
 #[derive(Accounts)]
@@ -441,7 +479,10 @@ pub struct ExecuteProposal<'info> {
     )]
     pub proposition: Account<'info, Proposition>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = treasury.key() == multisig.treasury @ ErrorCode::InvalidTreasury
+    )]
     /// CHECK: This is a PDA that will hold SOL and sign transactions
     pub treasury: UncheckedAccount<'info>,
 }

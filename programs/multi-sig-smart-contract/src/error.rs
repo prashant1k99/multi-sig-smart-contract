@@ -30,4 +30,6 @@ pub enum ErrorCode {
     InvalidTransferAmount,
     #[msg("Invalid program instruction")]
     InvalidProgramInstruction,
+    #[msg("User Limit reached")]
+    MaxUsersReached,
 }
