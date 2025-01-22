@@ -70,6 +70,18 @@ pub mod multi_sig_smart_contract {
         require!(multisig.is_user(&user_key), ErrorCode::UserDoesNotExists);
 
         multisig.users.retain(|user| user.key != user_key);
+
+        // Update threshold if the threshold is greater then approvel count then
+        let approver_count = multisig
+            .users
+            .iter()
+            .filter(|&user| helpers::check_role(user, APPROVER_POSITION))
+            .count() as u8;
+
+        if multisig.threshold > approver_count {
+            multisig.threshold = approver_count
+        }
+
         Ok(())
     }
 
@@ -91,6 +103,17 @@ pub mod multi_sig_smart_contract {
                 user.roles = helpers::give_numeric_value_for_role(roles);
                 break;
             }
+        }
+
+        // Update threshold if the threshold is greater then approvel count then
+        let approver_count = multisig
+            .users
+            .iter()
+            .filter(|&user| helpers::check_role(user, APPROVER_POSITION))
+            .count() as u8;
+
+        if multisig.threshold > approver_count {
+            multisig.threshold = approver_count
         }
 
         Ok(())
