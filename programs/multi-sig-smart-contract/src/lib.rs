@@ -219,7 +219,7 @@ pub mod multi_sig_smart_contract {
                 // treasury account if it is already part of the list
                 .map(|acc| AccountMeta {
                     pubkey: acc.pubkey,
-                    is_signer: false, // Remove original signers since treasury will sign
+                    is_signer: acc.is_signer, // Remove original signers since treasury will sign
                     is_writable: acc.is_writable,
                 }),
         );
