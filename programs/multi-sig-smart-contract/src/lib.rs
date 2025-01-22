@@ -342,7 +342,7 @@ pub struct InitProposal<'info> {
         seeds = [
             b"proposition",
             multisig.key().as_ref(),
-            &[multisig.transaction_count as u8]
+            &multisig.transaction_count.to_le_bytes()
         ],
         bump
     )]
