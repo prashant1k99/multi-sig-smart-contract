@@ -227,13 +227,6 @@ pub mod multi_sig_smart_contract {
             .filter(|vote| vote.favour == true)
             .count() as u8;
 
-        msg!(
-            "Executor Id: {} \n TreasuryAccount ID: {} \n Proposal Id: {}",
-            &ctx.accounts.executor.key,
-            &ctx.accounts.treasury.key,
-            proposal.key()
-        );
-
         require!(
             favoured_vote_count >= multisig.threshold,
             ErrorCode::InsufficientVotes
@@ -246,7 +239,6 @@ pub mod multi_sig_smart_contract {
             &[multisig.treasury_bump],
         ];
 
-        msg!("Executing Transaction");
         let mut transaction_accounts = Vec::new();
 
         // Add treasury as the first account if it needs to sign
@@ -269,9 +261,6 @@ pub mod multi_sig_smart_contract {
                     is_writable: acc.is_writable,
                 }),
         );
-
-        msg!("Seeds: {:?}", treasury_seeds);
-        msg!("Accounts: {:?}", transaction_accounts);
 
         // Execute the instruction with treasury as signer
         let instruction = Instruction {
